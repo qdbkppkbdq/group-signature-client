@@ -12,6 +12,7 @@ import org.fisco.bcos.web3j.protocol.core.RemoteCall;
 import org.fisco.bcos.web3j.tx.Contract;
 import org.fisco.bcos.web3j.tx.TransactionManager;
 import org.fisco.bcos.web3j.tx.gas.ContractGasProvider;
+import org.fisco.bcos.web3j.tx.txdecode.TransactionDecoder;
 
 /**
  * Auto generated code.
@@ -26,10 +27,12 @@ import org.fisco.bcos.web3j.tx.gas.ContractGasProvider;
  */
 @SuppressWarnings("unchecked")
 public class GroupSigPrecompiled extends Contract {
-    public static final String BINARY = "";
+    public static String BINARY = "";
 
     public static final String ABI =
             "[{\"constant\":true,\"inputs\":[{\"name\":\"signature\",\"type\":\"string\"},{\"name\":\"message\",\"type\":\"string\"},{\"name\":\"gpkInfo\",\"type\":\"string\"},{\"name\":\"paramInfo\",\"type\":\"string\"}],\"name\":\"groupSigVerify\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]";
+
+    public static final TransactionDecoder transactionDecoder = new TransactionDecoder(ABI, BINARY);
 
     public static final String FUNC_GROUPSIGVERIFY = "groupSigVerify";
 
@@ -67,6 +70,10 @@ public class GroupSigPrecompiled extends Contract {
             TransactionManager transactionManager,
             ContractGasProvider contractGasProvider) {
         super(BINARY, contractAddress, web3j, transactionManager, contractGasProvider);
+    }
+
+    public static TransactionDecoder getTransactionDecoder() {
+        return transactionDecoder;
     }
 
     public RemoteCall<Boolean> groupSigVerify(

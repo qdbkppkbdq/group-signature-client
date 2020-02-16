@@ -23,18 +23,10 @@ import org.fisco.bcos.groupsig.contract.TestRingSig;
 import org.fisco.bcos.web3j.crypto.Credentials;
 import org.fisco.bcos.web3j.protocol.Web3j;
 import org.fisco.bcos.web3j.protocol.channel.ChannelEthereumService;
-import org.fisco.bcos.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
-
-// web3j related
-// common classes of authentication
-// eth authentication related
-// solidity java class generated automatically by web3sdk tool
-// abi related classes
-// self-defined classes
 
 public class SigServiceApp {
     private Logger logger = LoggerFactory.getLogger(SigServiceApp.class);
@@ -89,7 +81,7 @@ public class SigServiceApp {
     // deploy contract: return contract address
     public int deployGroupSigContract(
             String groupName, String memberName, String message, StringBuffer address) {
-        System.out.println("###begin deploy group sig contract");
+        System.out.println("### begin deploy group sig contract");
         try {
             Service service = context.getBean(Service.class);
             service.run();
@@ -100,9 +92,9 @@ public class SigServiceApp {
         // callback group sig service
         SigStruct sigObj = new SigStruct();
         boolean ret = sigService.groupSig(sigObj, groupName, memberName, message);
-        System.out.println("##SIG:" + sigObj.getSig());
-        System.out.println("###GPK:" + sigObj.getGPK());
-        System.out.println("###PBC_PARAM:" + sigObj.getParam());
+        System.out.println("### SIG:" + sigObj.getSig());
+        System.out.println("### GPK:" + sigObj.getGPK());
+        System.out.println("### PBC_PARAM:" + sigObj.getParam());
         if (!ret) return RetCode.CALL_GROUPSIG_RPC_FAILED;
         try {
             groupSig =
@@ -181,11 +173,10 @@ public class SigServiceApp {
         groupSig = TestGroupSig.load(contractAddr, web3j, credentials, gasPrice, gasLimit);
 
         try {
-            TransactionReceipt receipt =
-                    groupSig.update_sig_data(
-                                    sigObj.getSig(), message, sigObj.getGPK(), sigObj.getParam())
-                            .send();
-            String sig = groupSig.get_sig().send();
+            groupSig.update_group_sig_data(
+                            sigObj.getSig(), message, sigObj.getGPK(), sigObj.getParam())
+                    .send();
+            String sig = groupSig.get_group_sig().send();
             updatedSig.append(sig);
             return RetCode.SUCCESS;
         } catch (Exception e) {
@@ -198,11 +189,10 @@ public class SigServiceApp {
     public int groupSigVerify(String contractAddress, StringBuffer verifyResult) {
         groupSig = TestGroupSig.load(contractAddress, web3j, credentials, gasPrice, gasLimit);
         try {
-            TransactionReceipt receipt = groupSig.verify().send();
-            boolean ret = groupSig.get_verify_result().send();
+            groupSig.verify_group_sig().send();
+            boolean ret = groupSig.get_group_verify_result().send();
             if (ret) verifyResult.append("true");
             else verifyResult.append("false");
-
             return RetCode.SUCCESS;
         } catch (Exception e) {
             logger.error("get cns code failed, error msg:" + e.getMessage());
@@ -227,10 +217,9 @@ public class SigServiceApp {
         ringSig = TestRingSig.load(contractAddr, web3j, credentials, gasPrice, gasLimit);
 
         try {
-            TransactionReceipt receipt =
-                    ringSig.update_sig_data(ringSigObj.getSig(), message, ringSigObj.getParam())
-                            .send();
-            String result = ringSig.get_sig().send();
+            ringSig.update_ring_sig_data(ringSigObj.getSig(), message, ringSigObj.getParam())
+                    .send();
+            String result = ringSig.get_ring_sig().send();
             verifyResult.append(result);
 
             return RetCode.SUCCESS;
@@ -245,8 +234,8 @@ public class SigServiceApp {
         // load contract
         ringSig = TestRingSig.load(contractAddress, web3j, credentials, gasPrice, gasLimit);
         try {
-            TransactionReceipt receipt = ringSig.verify().send();
-            boolean ret = ringSig.get_verify_result().send();
+            ringSig.verify_ring_sig().send();
+            boolean ret = ringSig.get_ring_verify_result().send();
             if (ret) verifyResult.append("true");
             else verifyResult.append("false");
 

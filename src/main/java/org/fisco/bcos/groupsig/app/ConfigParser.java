@@ -69,7 +69,7 @@ public class ConfigParser {
                     while ((line = bufReader.readLine()) != null) {
                         result += line;
                     }
-                    System.out.println("load config " + filePath + " result = " + result);
+                    logger.info("load config {} result = {}", filePath, result);
                 }
             }
             return result;
@@ -112,6 +112,6 @@ public class ConfigParser {
                 }
             }
         }
-        System.out.println("ip:" + connIp + " port:" + connPort);
+        logger.info("ip: {}, port: {}", connIp, connPort);
     }
 }

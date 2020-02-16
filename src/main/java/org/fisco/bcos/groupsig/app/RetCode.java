@@ -40,18 +40,18 @@ public class RetCode {
     public static final int SERVICE_RUN_FAILED = 30112;
 
     public static void Msg(int ret_code, String prefix) {
-        prefix = "**" + prefix;
-        if (SUCCESS == ret_code) System.out.println(prefix + " SUCCESS");
-        if (UNKOWN_RET == ret_code) System.out.println(prefix + " UNKOWN RET CODE");
+        prefix = "*** " + prefix;
+        if (SUCCESS == ret_code) System.out.println(prefix + "SUCCESS");
+        if (UNKOWN_RET == ret_code) System.out.println(prefix + "UNKOWN RET CODE");
 
         if (DEPLOY_GROUP_CONTRACT_FAILED == ret_code)
-            System.out.println(prefix + " DEPLOY GROUP SIG CONTRACT FAILED");
+            System.out.println(prefix + "DEPLOY GROUP SIG CONTRACT FAILED");
 
         if (DEPLOY_RING_CONTRACT_FAILED == ret_code)
-            System.out.println(prefix + " DEPLOY RING SIG CONTRACT FAILED");
+            System.out.println(prefix + "DEPLOY RING SIG CONTRACT FAILED");
 
         if (ETH_GROUP_SIG_VERIFY_FAILED == ret_code)
-            System.out.println(prefix + " CALL ETH GROUP_SIG VERIFY FAILED");
+            System.out.println(prefix + "CALL ETH GROUP_SIG VERIFY FAILED");
 
         if (ETH_RING_SIG_VERIFY_FAILED == ret_code)
             System.out.println(prefix + "CALL ETH RING_SIG VERIFY FAILED");
@@ -77,7 +77,7 @@ public class RetCode {
         if (GET_CNS_CODE_FAILED == ret_code) System.out.println(prefix + "GET CNS CODE FAILED");
 
         if (INVALID_CONTRACT_ADDRESS == ret_code)
-            System.out.println(prefix + " INVALID CONTRACT ADDRESS");
+            System.out.println(prefix + "INVALID CONTRACT ADDRESS");
 
         if (SERVICE_RUN_FAILED == ret_code) System.out.println(prefix + " RUN sdk client FAILD");
     }

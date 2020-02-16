@@ -16,35 +16,20 @@ package org.fisco.bcos.groupsig.app;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URI;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
-import org.apache.http.NameValuePair;
 import org.apache.http.StatusLine;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.protocol.HTTP;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-// import net.sf.json.JSONObject;
 
 public class RequestSigService {
     private String url;
@@ -52,53 +37,6 @@ public class RequestSigService {
 
     public RequestSigService(String _url) {
         url = _url;
-    }
-
-    // deal with key-value format http post
-    private String httpPostKeyValue(String url, Map<String, Object> params) {
-        BufferedReader in = null;
-        try {
-            HttpClient client = HttpClientBuilder.create().build();
-            HttpPost request = new HttpPost();
-            request.setURI(new URI(url));
-
-            List<NameValuePair> param_map = new ArrayList<NameValuePair>();
-            for (Iterator iter = params.keySet().iterator(); iter.hasNext(); ) {
-                String key = (String) iter.next();
-                String value = String.valueOf(params.get(key));
-                param_map.add(new BasicNameValuePair(key, value));
-                // System.out.println(key+"_"+value);
-            }
-            request.setEntity(new UrlEncodedFormEntity(param_map, HTTP.UTF_8));
-
-            HttpResponse response = client.execute(request);
-            int code = response.getStatusLine().getStatusCode();
-            // System.out.println("ret_code:" + code);
-            if (code == 200) {
-                in =
-                        new BufferedReader(
-                                new InputStreamReader(response.getEntity().getContent(), "utf-8"));
-                StringBuffer sb = new StringBuffer("");
-                String line = "";
-                String NL = System.getProperty("line.separator");
-                while ((line = in.readLine()) != null) sb.append(line + NL);
-                return sb.toString();
-            } else {
-                System.out.println("get response failed");
-                return null;
-            }
-        } catch (Exception e) {
-            logger.error(e.getMessage());
-            return null;
-        } finally {
-            if (in != null) {
-                try {
-                    in.close();
-                } catch (Exception e) {
-                    logger.error("close buffer reader faild, error msg:" + e.getMessage());
-                }
-            }
-        }
     }
 
     // deal with json format http post
@@ -147,16 +85,16 @@ public class RequestSigService {
     }
 
     private static String getLevelStr(int level) {
-        StringBuffer levelStr = new StringBuffer();
+        StringBuilder levelStr = new StringBuilder();
         for (int levelI = 0; levelI < level; levelI++) {
             levelStr.append("\t");
         }
         return levelStr.toString();
     }
 
-    public static String jsonFormart(String s) {
+    private static String jsonFormart(String s) {
         int level = 0;
-        StringBuffer jsonForMatStr = new StringBuffer();
+        StringBuilder jsonForMatStr = new StringBuilder();
         for (int index = 0; index < s.length(); index++) {
 
             char c = s.charAt(index);
@@ -167,11 +105,11 @@ public class RequestSigService {
             switch (c) {
                 case '{':
                 case '[':
-                    jsonForMatStr.append(c + "\n");
+                    jsonForMatStr.append(c).append("\n");
                     level++;
                     break;
                 case ',':
-                    jsonForMatStr.append(c + "\n");
+                    jsonForMatStr.append(c).append("\n");
                     break;
                 case '}':
                 case ']':
@@ -193,7 +131,7 @@ public class RequestSigService {
     }
 
     private Map<String, Object> genParamMap(String method) {
-        Map<String, Object> paramMap = new HashMap<String, Object>();
+        Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("method", method);
         paramMap.put("id", 1);
         paramMap.put("jsonrpc", "2.0");
@@ -201,9 +139,9 @@ public class RequestSigService {
     }
 
     /////// group sig interface related&&&&
-    public String createGroup(String groupName, String gmPass, String pbcParam) {
+    void createGroup(String groupName, String gmPass, String pbcParam) {
         Map<String, Object> paramMap = genParamMap("create_group");
-        Map<String, String> subParamMap = new HashMap<String, String>();
+        Map<String, String> subParamMap = new HashMap<>();
 
         subParamMap.put("group_name", groupName);
         subParamMap.put("gm_pass", gmPass);
@@ -212,16 +150,15 @@ public class RequestSigService {
         paramMap.put("params", subParamMap);
         String param = getParam(paramMap);
         try {
-            return httpPostJson(url, param);
+            httpPostJson(url, param);
         } catch (Exception e) {
             logger.error(e.getMessage());
-            return null;
         }
     }
 
-    public String joinGroup(String groupName, String memberName) {
+    void joinGroup(String groupName, String memberName) {
         Map<String, Object> paramMap = genParamMap("join_group");
-        Map<String, String> subParamMap = new HashMap<String, String>();
+        Map<String, String> subParamMap = new HashMap<>();
 
         subParamMap.put("group_name", groupName);
         subParamMap.put("member_name", memberName);
@@ -229,17 +166,16 @@ public class RequestSigService {
         paramMap.put("params", subParamMap);
         String param = getParam(paramMap);
         try {
-            return httpPostJson(url, param);
+            httpPostJson(url, param);
         } catch (Exception e) {
             logger.error(e.getMessage());
-            return null;
         }
     }
 
     // group sig
-    public boolean groupSig(SigStruct sigObj, String groupName, String memberName, String message) {
+    boolean groupSig(SigStruct sigObj, String groupName, String memberName, String message) {
         Map<String, Object> paramMap = genParamMap("group_sig");
-        Map<String, String> subParamMap = new HashMap<String, String>();
+        Map<String, String> subParamMap = new HashMap<>();
 
         subParamMap.put("group_name", groupName);
         subParamMap.put("member_name", memberName);
@@ -254,7 +190,7 @@ public class RequestSigService {
                 sigObj.setSig(jsonObj.getString("sig"));
                 sigObj.setGPK(jsonObj.getString("gpk"));
                 sigObj.setParam(jsonObj.getString("pbc_param"));
-                message = jsonObj.getString("message");
+                jsonObj.getString("message");
                 return true;
             }
             return false;
@@ -265,9 +201,9 @@ public class RequestSigService {
     }
 
     // group sig verify
-    public String groupVerify(String groupName, String sig, String message) {
+    String groupVerify(String groupName, String sig, String message) {
         Map<String, Object> paramMap = genParamMap("group_verify");
-        Map<String, String> subParamMap = new HashMap<String, String>();
+        Map<String, String> subParamMap = new HashMap<>();
 
         subParamMap.put("group_name", groupName);
         subParamMap.put("group_sig", sig);
@@ -284,9 +220,9 @@ public class RequestSigService {
     }
 
     // open cert
-    public String openCert(String groupName, String groupSig, String message, String gmPass) {
+    void openCert(String groupName, String groupSig, String message, String gmPass) {
         Map<String, Object> paramMap = genParamMap("open_cert");
-        Map<String, String> subParamMap = new HashMap<String, String>();
+        Map<String, String> subParamMap = new HashMap<>();
 
         subParamMap.put("group_name", groupName);
         subParamMap.put("group_sig", groupSig);
@@ -297,35 +233,33 @@ public class RequestSigService {
         String openCertParam = getParam(paramMap);
         // System.out.println("##PARAM OF OPEN_CERT:"+ open_cert_param);
         try {
-            return httpPostJson(url, openCertParam);
+            httpPostJson(url, openCertParam);
         } catch (Exception e) {
             logger.error("OPEN GROUP SIG " + groupSig + " Failed, error msg:" + e.getMessage());
-            return null;
         }
     }
 
     // get interfaces
-    public String getPublicInfo(String groupName) {
+    void getPublicInfo(String groupName) {
         Map<String, Object> paramMap = genParamMap("get_public_info");
-        Map<String, String> subParamMap = new HashMap<String, String>();
+        Map<String, String> subParamMap = new HashMap<>();
 
         subParamMap.put("group_name", groupName);
         paramMap.put("params", subParamMap);
         String param = getParam(paramMap);
         // System.out.println("##PARAM OF GetPublicInfo "+ param);
         try {
-            return httpPostJson(url, param);
+            httpPostJson(url, param);
         } catch (Exception e) {
             logger.error(
                     "GET GROUP " + groupName + " public key failed, error msg:" + e.getMessage());
-            return null;
         }
     }
 
     // get gm passwd
-    public String getGMInfo(String groupName, String gmPass) {
+    void getGMInfo(String groupName, String gmPass) {
         Map<String, Object> paramMap = genParamMap("get_gmsk_info");
-        Map<String, String> subParamMap = new HashMap<String, String>();
+        Map<String, String> subParamMap = new HashMap<>();
 
         subParamMap.put("group_name", groupName);
         subParamMap.put("gm_pass", gmPass);
@@ -333,17 +267,16 @@ public class RequestSigService {
         paramMap.put("params", subParamMap);
         String param = getParam(paramMap);
         try {
-            return httpPostJson(url, param);
+            httpPostJson(url, param);
         } catch (Exception e) {
             logger.error("get gmsk info failed, error msg:" + e.getMessage());
-            return null;
         }
     }
 
     // get member private key info
-    public String getMemberInfo(String groupName, String memberName, String pass) {
+    void getMemberInfo(String groupName, String memberName, String pass) {
         Map<String, Object> paramMap = genParamMap("get_gsk_info");
-        Map<String, String> subParamMap = new HashMap<String, String>();
+        Map<String, String> subParamMap = new HashMap<>();
 
         subParamMap.put("group_name", groupName);
         subParamMap.put("member_name", memberName);
@@ -352,7 +285,7 @@ public class RequestSigService {
         paramMap.put("params", subParamMap);
         String param = getParam(paramMap);
         try {
-            return httpPostJson(url, param);
+            httpPostJson(url, param);
         } catch (Exception e) {
             logger.error(
                     "GetMemberInfo failed, group_name:"
@@ -361,47 +294,44 @@ public class RequestSigService {
                             + memberName
                             + ", error msg:"
                             + e.getMessage());
-            return null;
         }
     }
 
     ////// Ring sig interface related
-    public String setupRing(String ringName, int bitLen) {
+    void setupRing(String ringName, int bitLen) {
         Map<String, Object> paramMap = genParamMap("setup_ring");
-        Map<String, Object> subParamMap = new HashMap<String, Object>();
+        Map<String, Object> subParamMap = new HashMap<>();
 
         subParamMap.put("ring_name", ringName);
         subParamMap.put("bit_len", bitLen);
         paramMap.put("params", subParamMap);
         String ringParam = getParam(paramMap);
         try {
-            return httpPostJson(url, ringParam);
+            httpPostJson(url, ringParam);
         } catch (Exception e) {
             logger.error("call back SetupRing Failed, error msg:" + e.getMessage());
-            return null;
         }
     }
 
     // join ring
-    public String joinRing(String ringName) {
+    void joinRing(String ringName) {
         Map<String, Object> paramMap = genParamMap("join_ring");
-        Map<String, String> subParamMap = new HashMap<String, String>();
+        Map<String, String> subParamMap = new HashMap<>();
 
         subParamMap.put("ring_name", ringName);
         paramMap.put("params", subParamMap);
         String ringParam = getParam(paramMap);
         try {
-            return httpPostJson(url, ringParam);
+            httpPostJson(url, ringParam);
         } catch (Exception e) {
             logger.error("call back joinRing failed, error msg:" + e.getMessage());
-            return null;
         }
     }
 
-    public boolean linkableRingSig(
+    boolean linkableRingSig(
             SigStruct ringSigObj, String message, String ringName, int memberPos, int ringSize) {
         Map<String, Object> paramMap = genParamMap("linkable_ring_sig");
-        Map<String, Object> subParamMap = new HashMap<String, Object>();
+        Map<String, Object> subParamMap = new HashMap<>();
 
         subParamMap.put("ring_name", ringName);
         subParamMap.put("message", message);
@@ -427,9 +357,9 @@ public class RequestSigService {
         }
     }
 
-    public String linkableRingVerify(String ringName, String sig, String message) {
+    String linkableRingVerify(String ringName, String sig, String message) {
         Map<String, Object> paramMap = genParamMap("linkable_ring_verify");
-        Map<String, String> subParamMap = new HashMap<String, String>();
+        Map<String, String> subParamMap = new HashMap<>();
         subParamMap.put("ring_name", ringName);
         subParamMap.put("sig", sig);
         subParamMap.put("message", message);
@@ -446,23 +376,22 @@ public class RequestSigService {
     }
 
     ///// get interfaces
-    public String getRingParam(String ringName) {
+    void getRingParam(String ringName) {
         Map<String, Object> paramMap = genParamMap("get_ring_param");
-        Map<String, String> subParamMap = new HashMap<String, String>();
+        Map<String, String> subParamMap = new HashMap<>();
         subParamMap.put("ring_name", ringName);
         paramMap.put("params", subParamMap);
         String ringParam = getParam(paramMap);
         try {
-            return httpPostJson(url, ringParam);
+            httpPostJson(url, ringParam);
         } catch (Exception e) {
             logger.error("Callback GetRingParam FAILED, error msg:" + e.getMessage());
-            return null;
         }
     }
 
-    public String getRingPublicKey(String ringName, String memberPos) {
+    void getRingPublicKey(String ringName, String memberPos) {
         Map<String, Object> paramMap = genParamMap("get_public_key");
-        Map<String, String> subParamMap = new HashMap<String, String>();
+        Map<String, String> subParamMap = new HashMap<>();
 
         subParamMap.put("ring_name", ringName);
         subParamMap.put("id", memberPos);
@@ -471,16 +400,15 @@ public class RequestSigService {
 
         String ringParam = getParam(paramMap);
         try {
-            return httpPostJson(url, ringParam);
+            httpPostJson(url, ringParam);
         } catch (Exception e) {
             logger.error("CALLBACK GetRingPublicKey FAILED, error msg:" + e.getMessage());
-            return null;
         }
     }
 
-    public String getRingPrivateKey(String ringName, String memberPos) {
+    void getRingPrivateKey(String ringName, String memberPos) {
         Map<String, Object> paramMap = genParamMap("get_private_key");
-        Map<String, String> subParamMap = new HashMap<String, String>();
+        Map<String, String> subParamMap = new HashMap<>();
 
         subParamMap.put("ring_name", ringName);
         subParamMap.put("id", memberPos);
@@ -490,10 +418,9 @@ public class RequestSigService {
 
         // System.out.println("PARAM OF GetRingPrivateKey:"+ param);
         try {
-            return httpPostJson(url, param);
+            httpPostJson(url, param);
         } catch (Exception e) {
             logger.error("CALL BACK GetRingPrivateKey FAILED, error msg:" + e.getMessage());
-            return null;
         }
     }
 }
