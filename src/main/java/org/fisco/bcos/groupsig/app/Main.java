@@ -98,6 +98,10 @@ public class Main {
                 // group sig verify
             case "group_sig_verify":
                 {
+                    if (!checkContractAddress(args[2])) {
+                        System.out.println("Illegal contract address: " + args[2]);
+                        return;
+                    }
                     File file = new File("stat.log");
                     PrintStream ps = new PrintStream(new FileOutputStream(file));
                     try {
@@ -117,7 +121,9 @@ public class Main {
                         int i = 0;
                         ArrayList<Thread> threadArray = new ArrayList<Thread>();
                         do {
-                            System.out.println("### thread " + i);
+                            if (stressTest) {
+                                System.out.println("### thread " + i);
+                            }
                             threadArray.add(
                                     new Thread("" + i) {
                                         public void run() {
@@ -162,6 +168,10 @@ public class Main {
                 }
             case "update_group_sig_data":
                 {
+                    if (!checkContractAddress(args[2])) {
+                        System.out.println("Illegal contract address: " + args[2]);
+                        return;
+                    }
                     if (args.length != 6) return;
                     StringBuffer updatedSig = new StringBuffer();
                     int retCode =
@@ -174,6 +184,10 @@ public class Main {
                 }
             case "ring_sig_verify":
                 {
+                    if (!checkContractAddress(args[2])) {
+                        System.out.println("Illegal contract address: " + args[2]);
+                        return;
+                    }
                     File file = new File("stat.log");
                     PrintStream ps = new PrintStream(new FileOutputStream(file));
                     try {
@@ -230,6 +244,10 @@ public class Main {
                 }
             case "update_ring_sig_data":
                 {
+                    if (!checkContractAddress(args[2])) {
+                        System.out.println("Illegal contract address: " + args[2]);
+                        return;
+                    }
                     StringBuffer updatedRingSig = new StringBuffer();
                     int pos, size;
                     if (args.length == 7) {
@@ -278,11 +296,9 @@ public class Main {
                 pbcParam = args[4];
             }
             sigServiceRequestor.createGroup(args[2], args[3], pbcParam);
-        }
-        if (method.equals("join_group")) {
+        } else if (method.equals("join_group")) {
             sigServiceRequestor.joinGroup(args[2], args[3]);
-        }
-        if (method.equals("group_sig")) {
+        } else if (method.equals("group_sig")) {
             File file = new File("stat.log");
             PrintStream ps = new PrintStream(new FileOutputStream(file));
             try {
@@ -299,7 +315,7 @@ public class Main {
                 int i = 0;
                 ArrayList<Thread> threadArray = new ArrayList<Thread>();
                 do {
-                    System.out.println("### create thread");
+                    // create thread
                     threadArray.add(
                             new Thread("" + i) {
                                 public void run() {
@@ -334,9 +350,7 @@ public class Main {
             } finally {
                 ps.close();
             }
-        }
-
-        if (method.equals("group_verify")) {
+        } else if (method.equals("group_verify")) {
             File file = new File("stat_verify.log");
             PrintStream ps = new PrintStream(new FileOutputStream(file));
             try {
@@ -385,20 +399,15 @@ public class Main {
             } finally {
                 ps.close();
             }
-        }
-
-        if (method.equals("open_cert"))
+        } else if (method.equals("open_cert"))
             sigServiceRequestor.openCert(args[2], args[3], args[4], args[5]);
-
-        if (method.equals("get_public_info")) sigServiceRequestor.getPublicInfo(args[2]);
-
-        if (method.equals("get_gm_info")) sigServiceRequestor.getGMInfo(args[2], args[3]);
-
-        if (method.equals("get_member_info"))
+        else if (method.equals("get_public_info")) sigServiceRequestor.getPublicInfo(args[2]);
+        else if (method.equals("get_gm_info")) sigServiceRequestor.getGMInfo(args[2], args[3]);
+        else if (method.equals("get_member_info"))
             sigServiceRequestor.getMemberInfo(args[2], args[3], args[4]);
 
         // ring sig
-        if (method.equals("setup_ring")) {
+        else if (method.equals("setup_ring")) {
             int bitLen = 1024;
             if (args.length > 3) {
                 try {
@@ -413,11 +422,8 @@ public class Main {
                 }
             }
             sigServiceRequestor.setupRing(args[2], bitLen);
-        }
-
-        if (method.equals("join_ring")) sigServiceRequestor.joinRing(args[2]);
-
-        if (method.equals("ring_sig")) {
+        } else if (method.equals("join_ring")) sigServiceRequestor.joinRing(args[2]);
+        else if (method.equals("ring_sig")) {
             int stressTest_ = 0;
             if (args.length > 6) {
                 try {
@@ -492,9 +498,7 @@ public class Main {
             } finally {
                 ps.close();
             }
-        }
-
-        if (method.equals("ring_verify")) {
+        } else if (method.equals("ring_verify")) {
             // System.out.println("args_len:" + args.length + " ring_size:"+ring_size);
             int stressTest_ = 0;
             if (args.length > 5) {
@@ -543,14 +547,19 @@ public class Main {
             } finally {
                 ps.close();
             }
-        }
-
-        if (method.equals("get_ring_param")) sigServiceRequestor.getRingParam(args[2]);
-
-        if (method.equals("get_ring_public_key"))
+        } else if (method.equals("get_ring_param")) sigServiceRequestor.getRingParam(args[2]);
+        else if (method.equals("get_ring_public_key"))
             sigServiceRequestor.getRingPublicKey(args[2], args[3]);
-
-        if (method.equals("get_ring_private_key"))
+        else if (method.equals("get_ring_private_key"))
             sigServiceRequestor.getRingPrivateKey(args[2], args[3]);
+        else {
+            if (RpcFlag) {
+                System.out.println("Method: " + method + " not found");
+            }
+        }
+    }
+
+    private static boolean checkContractAddress(String address) {
+        return address.length() == 42;
     }
 }
