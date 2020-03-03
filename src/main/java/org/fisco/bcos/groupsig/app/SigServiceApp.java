@@ -1,20 +1,4 @@
-/*
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-  http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
-*/
-
 package org.fisco.bcos.groupsig.app;
-
-// common classes
 
 import java.math.BigInteger;
 import org.fisco.bcos.channel.client.Service;
@@ -42,29 +26,25 @@ public class SigServiceApp {
     private RequestSigService sigService;
 
     private Credentials credentials;
-    // gas related
-    private static final BigInteger gasPrice = new BigInteger("99999999999");
-    private static final BigInteger gasLimit = new BigInteger("9999999999999");
+    private static final BigInteger gasPrice = new BigInteger("3000000000");
+    private static final BigInteger gasLimit = new BigInteger("3000000000");
 
     // construct function
     public SigServiceApp(RequestSigService paramSigService) {
-        web3j = null;
-        context = null;
-        groupSig = null;
-        ringSig = null;
         sigService = paramSigService;
     }
 
     // load web3j configuration(define node&&channel port information) and init credentials
     public boolean loadConfig() throws Exception {
+        System.out.println("please wait ...");
         Service service;
         try {
             context = new ClassPathXmlApplicationContext("classpath:node/application.xml");
             service = context.getBean(Service.class);
             service.run();
         } catch (Exception e) {
-            logger.error("load config failed, error msg:" + e.getMessage());
-            return false;
+            logger.error("load config failed, error msg: " + e.getMessage());
+            throw new Exception("load config failed, error msg: " + e.getMessage());
         }
 
         credentials = GenCredential.create();
@@ -72,29 +52,30 @@ public class SigServiceApp {
         // channel eth service
         ChannelEthereumService channelService = new ChannelEthereumService();
         channelService.setChannelService(service);
-
-        web3j = Web3j.build(channelService);
+        channelService.setTimeout(5000);
+        web3j = Web3j.build(channelService, service.getGroupId());
         return true;
     }
 
     // deploy contract: return contract address
-    public int deployGroupSigContract(
-            String groupName, String memberName, String message, StringBuffer address) {
-        System.out.println("### begin deploy group sig contract");
+    public void deployGroupSigContract(
+            String groupName, String memberName, String message, StringBuffer address)
+            throws Exception {
+        String errorMsg = "deploy group sig contract failed, error_msg: ";
         try {
             Service service = context.getBean(Service.class);
             service.run();
         } catch (Exception e) {
-            logger.error("deploy group sig contract failed, error_msg:" + e.getMessage());
-            return RetCode.SERVICE_RUN_FAILED;
+            logger.error(errorMsg + e.getMessage());
+            throw new Exception(errorMsg + e.getMessage());
         }
         // callback group sig service
         SigStruct sigObj = new SigStruct();
         boolean ret = sigService.groupSig(sigObj, groupName, memberName, message);
-        System.out.println("### SIG:" + sigObj.getSig());
-        System.out.println("### GPK:" + sigObj.getGPK());
-        System.out.println("### PBC_PARAM:" + sigObj.getParam());
-        if (!ret) return RetCode.CALL_GROUPSIG_RPC_FAILED;
+        System.out.println("### SIG: " + sigObj.getSig());
+        System.out.println("### GPK: " + sigObj.getGPK());
+        System.out.println("### PBC_PARAM: " + sigObj.getParam());
+        if (!ret) throw new Exception(errorMsg + "call rpc failed");
         try {
             groupSig =
                     TestGroupSig.deploy(
@@ -108,32 +89,28 @@ public class SigServiceApp {
                                     sigObj.getParam())
                             .send();
         } catch (Exception e) {
-            logger.error("deploy group sig contract failed, error_msg:" + e.getMessage());
-            return RetCode.DEPLOY_GROUP_CONTRACT_FAILED;
+            logger.error(errorMsg + e.getMessage());
+            throw new Exception(errorMsg + e.getMessage());
         }
-        if (null != groupSig) {
-            address.append(groupSig.getContractAddress());
-            System.out.println("RESULT OF DEPLOY GROUP SIG CONTRACT: " + address);
-            return RetCode.SUCCESS;
-        }
-        return RetCode.DEPLOY_GROUP_CONTRACT_FAILED;
+        address.append(groupSig.getContractAddress());
     }
 
     // deploy ring_sig contract
-    public int deployRingSigContract(
-            String message, String ringName, int memberPos, int ringSize, StringBuffer address) {
+    public void deployRingSigContract(
+            String message, String ringName, int memberPos, int ringSize, StringBuffer address)
+            throws Exception {
         try {
             Service service = context.getBean(Service.class);
             service.run();
         } catch (Exception e) {
-            logger.error("init service failed, error msg:" + e.getMessage());
-            return RetCode.SERVICE_RUN_FAILED;
+            logger.error("init service failed, error msg: " + e.getMessage());
+            throw new Exception("init service failed, error msg: " + e.getMessage());
         }
 
         SigStruct ringSigObj = new SigStruct();
         boolean ret =
                 sigService.linkableRingSig(ringSigObj, message, ringName, memberPos, ringSize);
-        if (!ret) return RetCode.CALL_RINGSIG_RPC_FAILED;
+        if (!ret) throw new Exception("call rpc failed");
         try {
             ringSig =
                     TestRingSig.deploy(
@@ -146,27 +123,24 @@ public class SigServiceApp {
                                     ringSigObj.getParam())
                             .send();
         } catch (Exception e) {
-            logger.error("deploy ring sig contract failed, error_msg:" + e.getMessage());
-            return RetCode.DEPLOY_RING_CONTRACT_FAILED;
+            logger.error("deploy ring sig contract failed, error_msg: " + e.getMessage());
+            throw new Exception("deploy ring sig contract failed, error_msg:" + e.getMessage());
         }
-        if (null != ringSig) {
-            address.append(ringSig.getContractAddress());
-            return RetCode.SUCCESS;
-        }
-        return RetCode.DEPLOY_RING_CONTRACT_FAILED;
+        address.append(ringSig.getContractAddress());
     }
 
     // update group sig data
-    public int updateGroupSigData(
+    public void updateGroupSigData(
             String contractAddr,
             String groupName,
             String memberName,
             String message,
-            StringBuffer updatedSig) {
+            StringBuffer updatedSig)
+            throws Exception {
         SigStruct sigObj = new SigStruct();
         boolean ret = sigService.groupSig(sigObj, groupName, memberName, message);
         if (!ret) {
-            return RetCode.CALL_GROUPSIG_RPC_FAILED;
+            throw new Exception("call rpc failed");
         }
         groupSig = TestGroupSig.load(contractAddr, web3j, credentials, gasPrice, gasLimit);
 
@@ -176,41 +150,40 @@ public class SigServiceApp {
                     .send();
             String sig = groupSig.get_group_sig().send();
             updatedSig.append(sig);
-            return RetCode.SUCCESS;
         } catch (Exception e) {
-            logger.error("update group sig data failed, error_msg:" + e.getMessage());
-            return RetCode.UPDATE_GROUP_SIG_DATA_FAILED;
+            logger.error("update group sig data failed, error_msg: " + e.getMessage());
+            throw new Exception("update group sig data failed, error_msg: " + e.getMessage());
         }
     }
 
     // send signature to blockchain
-    public int groupSigVerify(String contractAddress, StringBuffer verifyResult) {
+    public void groupSigVerify(String contractAddress, StringBuffer verifyResult) throws Exception {
         groupSig = TestGroupSig.load(contractAddress, web3j, credentials, gasPrice, gasLimit);
         try {
             groupSig.verify_group_sig().send();
             boolean ret = groupSig.get_group_verify_result().send();
             if (ret) verifyResult.append("true");
             else verifyResult.append("false");
-            return RetCode.SUCCESS;
         } catch (Exception e) {
-            logger.error("get cns code failed, error msg:" + e.getMessage());
-            return RetCode.GET_CNS_CODE_FAILED;
+            logger.error("get cns code failed, error msg: " + e.getMessage());
+            throw new Exception("get cns code failed, error msg: " + e.getMessage());
         }
     }
 
     // update ring sig data
-    public int updateRingSigData(
+    public void updateRingSigData(
             String contractAddr,
             String message,
             String ringName,
             int memberPos,
             int ringSize,
-            StringBuffer verifyResult) {
+            StringBuffer verifyResult)
+            throws Exception {
         SigStruct ringSigObj = new SigStruct();
         boolean ret =
                 sigService.linkableRingSig(ringSigObj, message, ringName, memberPos, ringSize);
         if (!ret) {
-            return RetCode.CALL_RINGSIG_RPC_FAILED;
+            throw new Exception("call rpc failed");
         }
         ringSig = TestRingSig.load(contractAddr, web3j, credentials, gasPrice, gasLimit);
 
@@ -219,16 +192,14 @@ public class SigServiceApp {
                     .send();
             String result = ringSig.get_ring_sig().send();
             verifyResult.append(result);
-
-            return RetCode.SUCCESS;
         } catch (Exception e) {
-            logger.error("update ring sig data failed, error msg:" + e.getMessage());
-            return RetCode.GET_CNS_CODE_FAILED;
+            logger.error("update ring sig data failed, error msg: " + e.getMessage());
+            throw new Exception("update ring sig data failed, error msg: " + e.getMessage());
         }
     }
 
     // ring sig verify
-    public int ringSigVerify(String contractAddress, StringBuffer verifyResult) {
+    public void ringSigVerify(String contractAddress, StringBuffer verifyResult) throws Exception {
         // load contract
         ringSig = TestRingSig.load(contractAddress, web3j, credentials, gasPrice, gasLimit);
         try {
@@ -236,11 +207,9 @@ public class SigServiceApp {
             boolean ret = ringSig.get_ring_verify_result().send();
             if (ret) verifyResult.append("true");
             else verifyResult.append("false");
-
-            return RetCode.SUCCESS;
         } catch (Exception e) {
-            logger.error("get cns code failed, error_msg:" + e.getMessage());
-            return RetCode.GET_CNS_CODE_FAILED;
+            logger.error("get cns code failed, error_msg: " + e.getMessage());
+            throw new Exception("get cns code failed, error_msg: " + e.getMessage());
         }
     }
 }

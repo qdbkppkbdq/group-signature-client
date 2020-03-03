@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 
 public class Main {
     private static Logger logger = LoggerFactory.getLogger(Main.class);
-    private static boolean RpcFlag = false;
+    private static boolean RPCFlag = true;
 
     public static void main(String[] args) {
         try {
@@ -31,22 +31,329 @@ public class Main {
             String url = "http://" + configObj.getConnIp() + ":" + configObj.getConnPort();
             RequestSigService sigServiceRequestor = new RequestSigService(url);
             SigServiceApp sigApp = new SigServiceApp(sigServiceRequestor);
-            boolean configure = sigApp.loadConfig();
-            if (!configure) {
-                System.out.println("init configuration failed");
-            }
-            callFisco(args, sigApp, configObj.getThreadNum());
             callRpc(args, sigServiceRequestor, configObj.getThreadNum(), "RPC-URL: " + url);
+            callFisco(args, sigApp, configObj.getThreadNum());
             System.exit(0);
         } catch (Exception e) {
-            logger.error("input args is unvalid, error msg:" + e.getMessage());
+            logger.error(e.getMessage());
+            System.out.println("extra error message: " + e.getMessage());
+            System.exit(-1);
+        }
+    }
+
+    private static void callRpc(
+            String[] args, RequestSigService sigServiceRequestor, int threadNum, String url) {
+        String method = args[1];
+        switch (method) {
+            case "create_group":
+                System.out.println(url);
+                String pbcParam = "";
+                if (args.length >= 5) {
+                    pbcParam = args[4];
+                }
+                sigServiceRequestor.createGroup(args[2], args[3], pbcParam);
+                break;
+            case "join_group":
+                System.out.println(url);
+                sigServiceRequestor.joinGroup(args[2], args[3]);
+                break;
+            case "group_sig":
+                {
+                    System.out.println(url);
+                    File file = new File("stat.log");
+                    try (PrintStream ps = new PrintStream(new FileOutputStream(file))) {
+                        int stressTest_ = 0;
+                        if (args.length > 5) {
+                            try {
+                                stressTest_ = Integer.parseInt(args[5]);
+                            } catch (Exception e) {
+                                logger.error(e.getMessage());
+                            }
+                        }
+                        boolean stressTest = stressTest_ != 0;
+
+                        int i = 0;
+                        ArrayList<Thread> threadArray = new ArrayList<>();
+                        do {
+                            // create thread
+                            threadArray.add(
+                                    new Thread("thread" + i) {
+                                        public void run() {
+                                            do {
+                                                try {
+                                                    long startTime = System.currentTimeMillis();
+                                                    SigStruct sigObj = new SigStruct();
+                                                    boolean ret =
+                                                            sigServiceRequestor.groupSig(
+                                                                    sigObj, args[2], args[3],
+                                                                    args[4]);
+                                                    long endTime =
+                                                            System.currentTimeMillis(); // end time
+                                                    ps.println((endTime - startTime) + "ms");
+                                                    System.out.println(
+                                                            "time_eclipsed:"
+                                                                    + (endTime - startTime)
+                                                                    + "ms");
+                                                    if (!ret)
+                                                        System.out.println("GROUP SIG FAILED");
+                                                } catch (Exception e) {
+                                                    logger.error(e.getMessage());
+                                                }
+                                            } while (stressTest);
+                                        }
+                                    });
+                            threadArray.get(i).start();
+                            i++;
+                        } while (stressTest && i < threadNum);
+                        for (Thread thread : threadArray) {
+                            thread.join();
+                        }
+                    } catch (Exception e) {
+                        logger.error("callback group_sig failed,error msg:" + e.getMessage());
+                    }
+                    break;
+                }
+            case "group_verify":
+                {
+                    System.out.println(url);
+                    File file = new File("stat_verify.log");
+                    try (PrintStream ps = new PrintStream(new FileOutputStream(file))) {
+                        int stressTest_ = 0;
+                        if (args.length > 5) {
+                            try {
+                                stressTest_ = Integer.parseInt(args[5]);
+                            } catch (Exception e) {
+                                logger.error(e.getMessage());
+                            }
+                        }
+                        boolean stressTest = stressTest_ != 0;
+                        int i = 0;
+                        ArrayList<Thread> threadArray = new ArrayList<>();
+                        do {
+                            threadArray.add(
+                                    new Thread("thread" + i) {
+                                        public void run() {
+                                            do {
+                                                try {
+                                                    long startTime = System.currentTimeMillis();
+                                                    String result =
+                                                            sigServiceRequestor.groupVerify(
+                                                                    args[2], args[3], args[4]);
+                                                    System.out.println("group verify: " + result);
+                                                    long endTime =
+                                                            System.currentTimeMillis(); // end time
+                                                    ps.println((endTime - startTime) + "ms");
+                                                    System.out.println(
+                                                            "time_eclipsed:"
+                                                                    + (endTime - startTime)
+                                                                    + "ms");
+                                                } catch (Exception e) {
+                                                    logger.error(e.getMessage());
+                                                }
+                                            } while (stressTest);
+                                        }
+                                    });
+                            threadArray.get(i).start();
+                            i++;
+                        } while (stressTest && i < threadNum);
+                        for (Thread thread : threadArray) {
+                            thread.join();
+                        }
+                    } catch (Exception e) {
+                        logger.error("callback gruop_verify failed, error msg:" + e.getMessage());
+                    }
+                    break;
+                }
+            case "open_cert":
+                System.out.println(url);
+                sigServiceRequestor.openCert(args[2], args[3], args[4], args[5]);
+                break;
+            case "get_public_info":
+                System.out.println(url);
+                sigServiceRequestor.getPublicInfo(args[2]);
+                break;
+            case "get_gm_info":
+                System.out.println(url);
+                sigServiceRequestor.getGMInfo(args[2], args[3]);
+                break;
+            case "get_member_info":
+                sigServiceRequestor.getMemberInfo(args[2], args[3], args[4]);
+                break;
+
+                // ring sig
+            case "setup_ring":
+                System.out.println(url);
+                int bitLen = 1024;
+                if (args.length > 3) {
+                    try {
+                        bitLen = Integer.parseInt(args[3]);
+                    } catch (Exception e) {
+                        logger.error(
+                                "invalid bit len of public/private key "
+                                        + args[3]
+                                        + "error msg:"
+                                        + e.getMessage());
+                        return;
+                    }
+                }
+                sigServiceRequestor.setupRing(args[2], bitLen);
+                break;
+            case "join_ring":
+                System.out.println(url);
+                sigServiceRequestor.joinRing(args[2]);
+                break;
+            case "ring_sig":
+                {
+                    System.out.println(url);
+                    int stressTest_ = 0;
+                    if (args.length > 6) {
+                        try {
+                            stressTest_ = Integer.parseInt(args[6]);
+                        } catch (Exception e) {
+                            logger.error(e.getMessage());
+                        }
+                    }
+                    boolean stressTest = stressTest_ != 0;
+                    File file = new File("stat_ring_sig.log");
+                    try (PrintStream ps = new PrintStream(new FileOutputStream(file))) {
+                        int pos, size;
+                        if (args.length > 5) {
+                            try {
+                                pos = Integer.parseInt(args[4]);
+                                size = Integer.parseInt(args[5]);
+                            } catch (Exception e) {
+                                System.out.println(
+                                        "invalid member_pos or ring_size"
+                                                + args[4]
+                                                + args[5]
+                                                + " , error msg:"
+                                                + e.getMessage());
+                                return;
+                            }
+                            if (pos < 0 || pos > size || size > 32) {
+                                System.out.println("member's pos or ring-size is invalid!");
+                                System.out.println("0 <= pos < ring-size <= 32");
+                                return;
+                            }
+                        } else return;
+                        SigStruct ringSigObj = new SigStruct();
+                        int i = 0;
+                        ArrayList<Thread> threadArray = new ArrayList<>();
+                        do {
+                            threadArray.add(
+                                    new Thread("thread" + i) {
+                                        public void run() {
+                                            do {
+                                                try {
+                                                    long startTime = System.currentTimeMillis();
+                                                    boolean ret =
+                                                            sigServiceRequestor.linkableRingSig(
+                                                                    ringSigObj,
+                                                                    args[2],
+                                                                    args[3],
+                                                                    pos,
+                                                                    size);
+                                                    long endTime = System.currentTimeMillis();
+                                                    ps.println((endTime - startTime) + "ms");
+                                                    System.out.println(
+                                                            "time_eclipsed:"
+                                                                    + (endTime - startTime)
+                                                                    + "ms");
+                                                    if (!ret)
+                                                        System.out.println(
+                                                                "LINKABLE RING SIG FAILED");
+                                                } catch (Exception e) {
+                                                    logger.error(e.getMessage());
+                                                }
+                                            } while (stressTest);
+                                        }
+                                    });
+                            threadArray.get(i).start();
+                            i++;
+                        } while (stressTest && (i < threadNum));
+                        for (Thread thread : threadArray) {
+                            thread.join();
+                        }
+                    } catch (Exception e) {
+                        logger.error("callback ring_sig failed, error msg:" + e.getMessage());
+                    }
+                    break;
+                }
+            case "ring_verify":
+                {
+                    System.out.println(url);
+                    // System.out.println("args_len:" + args.length + " ring_size:"+ring_size);
+                    int stressTest_ = 0;
+                    if (args.length > 5) {
+                        try {
+                            stressTest_ = Integer.parseInt(args[5]);
+                        } catch (Exception e) {
+                            logger.error(e.getMessage());
+                        }
+                    }
+                    boolean stressTest = stressTest_ != 0;
+                    File file = new File("stat_ring_sig.log");
+                    try (PrintStream ps = new PrintStream(new FileOutputStream(file))) {
+                        int i = 0;
+                        ArrayList<Thread> threadArray = new ArrayList<>();
+                        do {
+                            threadArray.add(
+                                    new Thread("thread" + i) {
+                                        public void run() {
+                                            do {
+                                                try {
+                                                    long startTime = System.currentTimeMillis();
+                                                    sigServiceRequestor.linkableRingVerify(
+                                                            args[2], args[3], args[4]);
+                                                    long endTime = System.currentTimeMillis();
+                                                    ps.println((endTime - startTime) + "ms");
+                                                    System.out.println(
+                                                            "time_eclipsed:"
+                                                                    + (endTime - startTime)
+                                                                    + "ms");
+                                                } catch (Exception e) {
+                                                    logger.error(e.getMessage());
+                                                }
+                                            } while (stressTest);
+                                        }
+                                    });
+                            threadArray.get(i).start();
+                            i++;
+                        } while (stressTest && i < threadNum);
+                        for (Thread thread : threadArray) {
+                            thread.join();
+                        }
+                    } catch (Exception e) {
+                        logger.error("callback ring_verify failed, error msg:" + e.getMessage());
+                    }
+                    break;
+                }
+            case "get_ring_param":
+                System.out.println(url);
+                sigServiceRequestor.getRingParam(args[2]);
+                break;
+            case "get_ring_public_key":
+                System.out.println(url);
+                sigServiceRequestor.getRingPublicKey(args[2], args[3]);
+                break;
+            case "get_ring_private_key":
+                System.out.println(url);
+                sigServiceRequestor.getRingPrivateKey(args[2], args[3]);
+                break;
+            default:
+                RPCFlag = false;
+                break;
         }
     }
 
     // deploy contract
     public static void callFisco(String[] args, SigServiceApp sigApp, int threadNum)
             throws Exception {
-
+        if (RPCFlag) return;
+        boolean configure = sigApp.loadConfig();
+        if (!configure) {
+            System.out.println("init configuration failed");
+        }
         String method = args[1];
         StringBuffer contractAddr = new StringBuffer();
         // deploy group sig
@@ -55,12 +362,9 @@ public class Main {
                 {
                     if (args.length != 5) return;
                     // group_name, member_name, message
-                    int retCode =
-                            sigApp.deployGroupSigContract(args[2], args[3], args[4], contractAddr);
-                    RetCode.Msg(retCode, "");
-                    if (retCode == RetCode.SUCCESS)
-                        System.out.println(
-                                "RESULT OF deploy_group_sig(Contract Address): " + contractAddr);
+                    sigApp.deployGroupSigContract(args[2], args[3], args[4], contractAddr);
+                    System.out.println(
+                            "RESULT OF deploy_group_sig(Contract Address): " + contractAddr);
                     break;
                 }
                 // deploy ring sig
@@ -81,30 +385,27 @@ public class Main {
                             return;
                         }
                         if (pos < 0 || pos > size || size > 32) {
-                            System.out.println("Member's pos or ring size is invalid!");
+                            System.out.println("member's pos or ring-size is invalid!");
+                            System.out.println("0 <= pos < ring-size <= 32");
                             return;
                         }
                     } else return;
-                    int retCode =
-                            sigApp.deployRingSigContract(args[2], args[3], pos, size, contractAddr);
-                    RetCode.Msg(retCode, "");
-                    if (retCode == RetCode.SUCCESS) {
-                        System.out.println(
-                                "RESULT OF deploy_ring_sig(Contract Address): " + contractAddr);
-                    }
+                    sigApp.deployRingSigContract(args[2], args[3], pos, size, contractAddr);
+                    System.out.println(
+                            "RESULT OF deploy_ring_sig(Contract Address): " + contractAddr);
+
                     break;
                 }
 
                 // group sig verify
             case "group_sig_verify":
                 {
-                    if (!checkContractAddress(args[2])) {
+                    if (checkContractAddress(args[2])) {
                         System.out.println("Illegal contract address: " + args[2]);
                         return;
                     }
                     File file = new File("stat.log");
-                    PrintStream ps = new PrintStream(new FileOutputStream(file));
-                    try {
+                    try (PrintStream ps = new PrintStream(new FileOutputStream(file))) {
                         int stressTest_ = 0;
                         if (args.length > 6) {
                             try {
@@ -119,35 +420,30 @@ public class Main {
                         }
                         boolean stressTest = stressTest_ != 0;
                         int i = 0;
-                        ArrayList<Thread> threadArray = new ArrayList<Thread>();
+                        ArrayList<Thread> threadArray = new ArrayList<>();
                         do {
                             if (stressTest) {
                                 System.out.println("### thread " + i);
                             }
                             threadArray.add(
-                                    new Thread("" + i) {
+                                    new Thread("thread" + i) {
                                         public void run() {
                                             do {
                                                 try {
                                                     long startTime = System.currentTimeMillis();
-                                                    StringBuffer verifyResult =
-                                                            new StringBuffer("");
-                                                    int retCode =
-                                                            sigApp.groupSigVerify(
-                                                                    args[2], verifyResult);
+                                                    StringBuffer verifyResult = new StringBuffer();
+                                                    sigApp.groupSigVerify(args[2], verifyResult);
                                                     long endTime = System.currentTimeMillis();
-                                                    RetCode.Msg(retCode, "");
-                                                    if (retCode == RetCode.SUCCESS) {
-                                                        ps.println((endTime - startTime) + "ms");
-                                                        System.out.println(
-                                                                "time_eclipsed:"
-                                                                        + (endTime - startTime)
-                                                                        + "ms");
-                                                        System.out.println(
-                                                                "verify result = " + verifyResult);
-                                                    }
+                                                    ps.println((endTime - startTime) + "ms");
+                                                    System.out.println(
+                                                            "time_eclipsed:"
+                                                                    + (endTime - startTime)
+                                                                    + "ms");
+                                                    System.out.println(
+                                                            "verify result = " + verifyResult);
                                                 } catch (Exception e) {
                                                     logger.error(e.getMessage());
+                                                    System.out.println(e.getMessage());
                                                 }
                                             } while (stressTest);
                                         }
@@ -159,71 +455,59 @@ public class Main {
                             thread.join();
                         }
                     } catch (Exception e) {
-                        logger.error(
-                                "callback group_sig_verify failed, error msg:" + e.getMessage());
-                    } finally {
-                        ps.close();
+                        System.out.println(e.getMessage());
                     }
                     break;
                 }
             case "update_group_sig_data":
                 {
-                    if (!checkContractAddress(args[2])) {
+                    if (checkContractAddress(args[2])) {
                         System.out.println("Illegal contract address: " + args[2]);
                         return;
                     }
                     if (args.length != 6) return;
                     StringBuffer updatedSig = new StringBuffer();
-                    int retCode =
-                            sigApp.updateGroupSigData(
-                                    args[2], args[3], args[4], args[5], updatedSig);
-                    RetCode.Msg(retCode, "");
-                    if (retCode == RetCode.SUCCESS)
-                        System.out.println("updated group sig result:" + updatedSig);
+                    sigApp.updateGroupSigData(args[2], args[3], args[4], args[5], updatedSig);
+                    System.out.println("updated group sig result:" + updatedSig);
                     break;
                 }
             case "ring_sig_verify":
                 {
-                    if (!checkContractAddress(args[2])) {
+                    if (checkContractAddress(args[2])) {
                         System.out.println("Illegal contract address: " + args[2]);
                         return;
                     }
                     File file = new File("stat.log");
-                    PrintStream ps = new PrintStream(new FileOutputStream(file));
-                    try {
+                    try (PrintStream ps = new PrintStream(new FileOutputStream(file))) {
                         int stressTest_ = 0;
                         if (args.length > 6) {
                             stressTest_ = Integer.parseInt(args[6]);
                         }
                         boolean stressTest = stressTest_ != 0;
                         int i = 0;
-                        ArrayList<Thread> threadArray = new ArrayList<Thread>();
+                        ArrayList<Thread> threadArray = new ArrayList<>();
                         do {
                             threadArray.add(
-                                    new Thread("" + i) {
+                                    new Thread("thread" + i) {
                                         public void run() {
                                             do {
                                                 try {
                                                     long startTime = System.currentTimeMillis();
-                                                    StringBuffer verifyResult =
-                                                            new StringBuffer("");
-                                                    int retCode =
-                                                            sigApp.ringSigVerify(
-                                                                    args[2], verifyResult);
-                                                    RetCode.Msg(retCode, "");
+                                                    StringBuffer verifyResult = new StringBuffer();
+                                                    sigApp.ringSigVerify(args[2], verifyResult);
                                                     long endTime = System.currentTimeMillis();
-                                                    if (retCode == RetCode.SUCCESS) {
-                                                        System.out.println(
-                                                                "Verify result of ring sig = "
-                                                                        + verifyResult);
-                                                        ps.println((endTime - startTime) + "ms");
-                                                        System.out.println(
-                                                                "time_eclipsed:"
-                                                                        + (endTime - startTime)
-                                                                        + "ms");
-                                                    }
+                                                    System.out.println(
+                                                            "verify result of ring sig = "
+                                                                    + verifyResult);
+                                                    ps.println((endTime - startTime) + "ms");
+                                                    System.out.println(
+                                                            "time_eclipsed:"
+                                                                    + (endTime - startTime)
+                                                                    + "ms");
+
                                                 } catch (Exception e) {
                                                     logger.error(e.getMessage());
+                                                    System.out.println(e.getMessage());
                                                 }
                                             } while (stressTest);
                                         }
@@ -235,16 +519,13 @@ public class Main {
                             thread.join();
                         }
                     } catch (Exception e) {
-                        logger.error(
-                                "callback ring_sig_verify failed, error msg:" + e.getMessage());
-                    } finally {
-                        ps.close();
+                        System.out.println(e.getMessage());
                     }
                     break;
                 }
             case "update_ring_sig_data":
                 {
-                    if (!checkContractAddress(args[2])) {
+                    if (checkContractAddress(args[2])) {
                         System.out.println("Illegal contract address: " + args[2]);
                         return;
                     }
@@ -268,298 +549,17 @@ public class Main {
                             return;
                         }
                     } else return;
-                    int retCode =
-                            sigApp.updateRingSigData(
-                                    args[2], args[3], args[4], pos, size, updatedRingSig);
-                    RetCode.Msg(retCode, "");
-                    if (retCode == RetCode.SUCCESS)
-                        System.out.println("update ring sig data result:" + updatedRingSig);
+                    sigApp.updateRingSigData(args[2], args[3], args[4], pos, size, updatedRingSig);
+                    System.out.println("update ring sig data result:" + updatedRingSig);
                     break;
                 }
             default:
-                RpcFlag = true;
+                System.out.println("Method: " + method + " not found");
                 break;
         }
     }
 
-    private static void callRpc(
-            String[] args, RequestSigService sigServiceRequestor, int threadNum, String url)
-            throws Exception {
-        if (RpcFlag) {
-            System.out.println(url);
-        }
-
-        String method = args[1];
-        if (method.equals("create_group")) {
-            String pbcParam = "";
-            if (args.length >= 5) {
-                pbcParam = args[4];
-            }
-            sigServiceRequestor.createGroup(args[2], args[3], pbcParam);
-        } else if (method.equals("join_group")) {
-            sigServiceRequestor.joinGroup(args[2], args[3]);
-        } else if (method.equals("group_sig")) {
-            File file = new File("stat.log");
-            PrintStream ps = new PrintStream(new FileOutputStream(file));
-            try {
-                int stressTest_ = 0;
-                if (args.length > 5) {
-                    try {
-                        stressTest_ = Integer.parseInt(args[5]);
-                    } catch (Exception e) {
-                        logger.error(e.getMessage());
-                    }
-                }
-                boolean stressTest = stressTest_ != 0;
-
-                int i = 0;
-                ArrayList<Thread> threadArray = new ArrayList<Thread>();
-                do {
-                    // create thread
-                    threadArray.add(
-                            new Thread("" + i) {
-                                public void run() {
-                                    do {
-                                        try {
-                                            long startTime = System.currentTimeMillis();
-                                            SigStruct sigObj = new SigStruct();
-                                            boolean ret =
-                                                    sigServiceRequestor.groupSig(
-                                                            sigObj, args[2], args[3], args[4]);
-                                            long endTime = System.currentTimeMillis(); // end time
-                                            ps.println((endTime - startTime) + "ms");
-                                            System.out.println(
-                                                    "time_eclipsed:"
-                                                            + (endTime - startTime)
-                                                            + "ms");
-                                            if (!ret) System.out.println("GROUP SIG FAILED");
-                                        } catch (Exception e) {
-                                            logger.error(e.getMessage());
-                                        }
-                                    } while (stressTest);
-                                }
-                            });
-                    threadArray.get(i).start();
-                    i++;
-                } while (stressTest && i < threadNum);
-                for (Thread thread : threadArray) {
-                    thread.join();
-                }
-            } catch (Exception e) {
-                logger.error("callback group_sig failed,error msg:" + e.getMessage());
-            } finally {
-                ps.close();
-            }
-        } else if (method.equals("group_verify")) {
-            File file = new File("stat_verify.log");
-            PrintStream ps = new PrintStream(new FileOutputStream(file));
-            try {
-                int stressTest_ = 0;
-                if (args.length > 5) {
-                    try {
-                        stressTest_ = Integer.parseInt(args[5]);
-                    } catch (Exception e) {
-                        logger.error(e.getMessage());
-                    }
-                }
-                boolean stressTest = stressTest_ != 0;
-                int i = 0;
-                ArrayList<Thread> threadArray = new ArrayList<Thread>();
-                do {
-                    threadArray.add(
-                            new Thread("" + i) {
-                                public void run() {
-                                    do {
-                                        try {
-                                            long startTime = System.currentTimeMillis();
-                                            String result =
-                                                    sigServiceRequestor.groupVerify(
-                                                            args[2], args[3], args[4]);
-                                            System.out.println("group verify: " + result);
-                                            long endTime = System.currentTimeMillis(); // end time
-                                            ps.println((endTime - startTime) + "ms");
-                                            System.out.println(
-                                                    "time_eclipsed:"
-                                                            + (endTime - startTime)
-                                                            + "ms");
-                                        } catch (Exception e) {
-                                            logger.error(e.getMessage());
-                                        }
-                                    } while (stressTest);
-                                }
-                            });
-                    threadArray.get(i).start();
-                    i++;
-                } while (stressTest && i < threadNum);
-                for (Thread thread : threadArray) {
-                    thread.join();
-                }
-            } catch (Exception e) {
-                logger.error("callback gruop_verify failed, error msg:" + e.getMessage());
-            } finally {
-                ps.close();
-            }
-        } else if (method.equals("open_cert"))
-            sigServiceRequestor.openCert(args[2], args[3], args[4], args[5]);
-        else if (method.equals("get_public_info")) sigServiceRequestor.getPublicInfo(args[2]);
-        else if (method.equals("get_gm_info")) sigServiceRequestor.getGMInfo(args[2], args[3]);
-        else if (method.equals("get_member_info"))
-            sigServiceRequestor.getMemberInfo(args[2], args[3], args[4]);
-
-        // ring sig
-        else if (method.equals("setup_ring")) {
-            int bitLen = 1024;
-            if (args.length > 3) {
-                try {
-                    bitLen = Integer.parseInt(args[3]);
-                } catch (Exception e) {
-                    logger.error(
-                            "invalid bit len of public/private key "
-                                    + args[3]
-                                    + "error msg:"
-                                    + e.getMessage());
-                    return;
-                }
-            }
-            sigServiceRequestor.setupRing(args[2], bitLen);
-        } else if (method.equals("join_ring")) sigServiceRequestor.joinRing(args[2]);
-        else if (method.equals("ring_sig")) {
-            int stressTest_ = 0;
-            if (args.length > 6) {
-                try {
-                    stressTest_ = Integer.parseInt(args[6]);
-                } catch (Exception e) {
-                    logger.error(e.getMessage());
-                }
-            }
-            boolean stressTest = stressTest_ != 0;
-            File file = new File("stat_ring_sig.log");
-            PrintStream ps = new PrintStream(new FileOutputStream(file));
-            try {
-                int pos, size;
-                if (args.length > 5) {
-                    try {
-                        pos = Integer.parseInt(args[4]);
-                        size = Integer.parseInt(args[5]);
-                    } catch (Exception e) {
-                        logger.error(
-                                "invalid member_pos or ring_size"
-                                        + args[4]
-                                        + args[5]
-                                        + " , error msg:"
-                                        + e.getMessage());
-                        return;
-                    }
-                    if (pos < 0 || pos > size || size > 32) {
-                        System.out.println("Member's pos or ring size is invalid!");
-                        return;
-                    }
-                } else return;
-
-                SigStruct ringSigObj = new SigStruct();
-                int i = 0;
-                ArrayList<Thread> threadArray = new ArrayList<Thread>();
-                do {
-                    threadArray.add(
-                            new Thread("" + i) {
-                                public void run() {
-                                    do {
-                                        try {
-                                            long startTime = System.currentTimeMillis();
-                                            boolean ret =
-                                                    sigServiceRequestor.linkableRingSig(
-                                                            ringSigObj,
-                                                            args[2],
-                                                            args[3],
-                                                            pos,
-                                                            size);
-                                            long endTime = System.currentTimeMillis();
-                                            ps.println((endTime - startTime) + "ms");
-                                            System.out.println(
-                                                    "time_eclipsed:"
-                                                            + (endTime - startTime)
-                                                            + "ms");
-                                            if (!ret)
-                                                System.out.println("LINKABLE RING SIG FAILED");
-                                        } catch (Exception e) {
-                                            logger.error(e.getMessage());
-                                        }
-                                    } while (stressTest);
-                                }
-                            });
-                    threadArray.get(i).start();
-                    i++;
-                } while (stressTest && (i < threadNum));
-                for (Thread thread : threadArray) {
-                    thread.join();
-                }
-            } catch (Exception e) {
-                logger.error("callback ring_sig failed, error msg:" + e.getMessage());
-            } finally {
-                ps.close();
-            }
-        } else if (method.equals("ring_verify")) {
-            // System.out.println("args_len:" + args.length + " ring_size:"+ring_size);
-            int stressTest_ = 0;
-            if (args.length > 5) {
-                try {
-                    stressTest_ = Integer.parseInt(args[5]);
-                } catch (Exception e) {
-                    logger.error(e.getMessage());
-                }
-            }
-            boolean stressTest = stressTest_ != 0;
-            File file = new File("stat_ring_sig.log");
-            PrintStream ps = new PrintStream(new FileOutputStream(file));
-            try {
-                int i = 0;
-                ArrayList<Thread> threadArray = new ArrayList<Thread>();
-                do {
-                    threadArray.add(
-                            new Thread("" + i) {
-                                public void run() {
-                                    do {
-                                        try {
-                                            long startTime = System.currentTimeMillis();
-                                            String result =
-                                                    sigServiceRequestor.linkableRingVerify(
-                                                            args[2], args[3], args[4]);
-                                            long endTime = System.currentTimeMillis();
-                                            ps.println((endTime - startTime) + "ms");
-                                            System.out.println(
-                                                    "time_eclipsed:"
-                                                            + (endTime - startTime)
-                                                            + "ms");
-                                        } catch (Exception e) {
-                                            logger.error(e.getMessage());
-                                        }
-                                    } while (stressTest);
-                                }
-                            });
-                    threadArray.get(i).start();
-                    i++;
-                } while (stressTest && i < threadNum);
-                for (Thread thread : threadArray) {
-                    thread.join();
-                }
-            } catch (Exception e) {
-                logger.error("callback ring_verify failed, error msg:" + e.getMessage());
-            } finally {
-                ps.close();
-            }
-        } else if (method.equals("get_ring_param")) sigServiceRequestor.getRingParam(args[2]);
-        else if (method.equals("get_ring_public_key"))
-            sigServiceRequestor.getRingPublicKey(args[2], args[3]);
-        else if (method.equals("get_ring_private_key"))
-            sigServiceRequestor.getRingPrivateKey(args[2], args[3]);
-        else {
-            if (RpcFlag) {
-                System.out.println("Method: " + method + " not found");
-            }
-        }
-    }
-
     private static boolean checkContractAddress(String address) {
-        return address.length() == 42;
+        return address.length() != 42 || !address.startsWith("0x");
     }
 }

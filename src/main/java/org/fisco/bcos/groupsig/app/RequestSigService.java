@@ -67,18 +67,21 @@ public class RequestSigService {
             }
         } catch (Exception e) { // System.out.println("catch");
             logger.error(e.getMessage());
+            System.out.println(e.getMessage());
         } finally {
             if (response != null) {
                 try {
                     response.close();
                 } catch (IOException e) {
                     logger.error(e.getMessage());
+                    System.out.println(e.getMessage());
                 }
             }
             try {
                 httpClient.close();
             } catch (IOException e) {
                 logger.error(e.getMessage());
+                System.out.println(e.getMessage());
             }
         }
         return null;
@@ -126,7 +129,7 @@ public class RequestSigService {
         return jsonForMatStr.toString();
     }
 
-    private String getParam(Map paramMap) {
+    private String getParam(Map<String, Object> paramMap) {
         return JSON.toJSONString(paramMap);
     }
 
@@ -149,11 +152,7 @@ public class RequestSigService {
 
         paramMap.put("params", subParamMap);
         String param = getParam(paramMap);
-        try {
-            httpPostJson(url, param);
-        } catch (Exception e) {
-            logger.error(e.getMessage());
-        }
+        httpPostJson(url, param);
     }
 
     void joinGroup(String groupName, String memberName) {
@@ -165,11 +164,7 @@ public class RequestSigService {
 
         paramMap.put("params", subParamMap);
         String param = getParam(paramMap);
-        try {
-            httpPostJson(url, param);
-        } catch (Exception e) {
-            logger.error(e.getMessage());
-        }
+        httpPostJson(url, param);
     }
 
     // group sig
@@ -183,21 +178,16 @@ public class RequestSigService {
 
         paramMap.put("params", subParamMap);
         String group_sig_param = getParam(paramMap);
-        try {
-            String jsonRet = httpPostJson(url, group_sig_param);
-            JSONObject jsonObj = JSONObject.parseObject(jsonRet).getJSONObject("result");
-            if (jsonObj.getInteger("ret_code") == RetCode.SUCCESS) {
-                sigObj.setSig(jsonObj.getString("sig"));
-                sigObj.setGPK(jsonObj.getString("gpk"));
-                sigObj.setParam(jsonObj.getString("pbc_param"));
-                jsonObj.getString("message");
-                return true;
-            }
-            return false;
-        } catch (Exception e) {
-            logger.error("##CALL BACK GROUPSIG FAILED " + e.getMessage());
-            return false;
+        String jsonRet = httpPostJson(url, group_sig_param);
+        JSONObject jsonObj = JSONObject.parseObject(jsonRet).getJSONObject("result");
+        if (jsonObj.getInteger("ret_code") == RetCode.SUCCESS) {
+            sigObj.setSig(jsonObj.getString("sig"));
+            sigObj.setGPK(jsonObj.getString("gpk"));
+            sigObj.setParam(jsonObj.getString("pbc_param"));
+            jsonObj.getString("message");
+            return true;
         }
+        return false;
     }
 
     // group sig verify
@@ -211,12 +201,7 @@ public class RequestSigService {
 
         paramMap.put("params", subParamMap);
         String group_verify_param = getParam(paramMap);
-        try {
-            return httpPostJson(url, group_verify_param);
-        } catch (Exception e) {
-            logger.error("GROUP VERIFY FAILED " + e.getMessage());
-            return null;
-        }
+        return httpPostJson(url, group_verify_param);
     }
 
     // open cert
@@ -232,11 +217,7 @@ public class RequestSigService {
         paramMap.put("params", subParamMap);
         String openCertParam = getParam(paramMap);
         // System.out.println("##PARAM OF OPEN_CERT:"+ open_cert_param);
-        try {
-            httpPostJson(url, openCertParam);
-        } catch (Exception e) {
-            logger.error("OPEN GROUP SIG " + groupSig + " Failed, error msg:" + e.getMessage());
-        }
+        httpPostJson(url, openCertParam);
     }
 
     // get interfaces
@@ -248,12 +229,7 @@ public class RequestSigService {
         paramMap.put("params", subParamMap);
         String param = getParam(paramMap);
         // System.out.println("##PARAM OF GetPublicInfo "+ param);
-        try {
-            httpPostJson(url, param);
-        } catch (Exception e) {
-            logger.error(
-                    "GET GROUP " + groupName + " public key failed, error msg:" + e.getMessage());
-        }
+        httpPostJson(url, param);
     }
 
     // get gm passwd
@@ -266,11 +242,7 @@ public class RequestSigService {
 
         paramMap.put("params", subParamMap);
         String param = getParam(paramMap);
-        try {
-            httpPostJson(url, param);
-        } catch (Exception e) {
-            logger.error("get gmsk info failed, error msg:" + e.getMessage());
-        }
+        httpPostJson(url, param);
     }
 
     // get member private key info
@@ -284,17 +256,7 @@ public class RequestSigService {
 
         paramMap.put("params", subParamMap);
         String param = getParam(paramMap);
-        try {
-            httpPostJson(url, param);
-        } catch (Exception e) {
-            logger.error(
-                    "GetMemberInfo failed, group_name:"
-                            + groupName
-                            + ", member_name:"
-                            + memberName
-                            + ", error msg:"
-                            + e.getMessage());
-        }
+        httpPostJson(url, param);
     }
 
     ////// Ring sig interface related
@@ -306,11 +268,7 @@ public class RequestSigService {
         subParamMap.put("bit_len", bitLen);
         paramMap.put("params", subParamMap);
         String ringParam = getParam(paramMap);
-        try {
-            httpPostJson(url, ringParam);
-        } catch (Exception e) {
-            logger.error("call back SetupRing Failed, error msg:" + e.getMessage());
-        }
+        httpPostJson(url, ringParam);
     }
 
     // join ring
@@ -321,11 +279,7 @@ public class RequestSigService {
         subParamMap.put("ring_name", ringName);
         paramMap.put("params", subParamMap);
         String ringParam = getParam(paramMap);
-        try {
-            httpPostJson(url, ringParam);
-        } catch (Exception e) {
-            logger.error("call back joinRing failed, error msg:" + e.getMessage());
-        }
+        httpPostJson(url, ringParam);
     }
 
     boolean linkableRingSig(
@@ -340,24 +294,19 @@ public class RequestSigService {
         paramMap.put("params", subParamMap);
 
         String ringParam = getParam(paramMap);
-        try {
-            String jsonRet = httpPostJson(url, ringParam);
-            JSONObject jsonObj = JSONObject.parseObject(jsonRet).getJSONObject("result");
-            if (jsonObj != null) {
-                if (jsonObj.getInteger("ret_code") == RetCode.SUCCESS) {
-                    ringSigObj.setSig(jsonObj.getString("sig"));
-                    ringSigObj.setParam(jsonObj.getString("param_info"));
-                    return true;
-                }
+        String jsonRet = httpPostJson(url, ringParam);
+        JSONObject jsonObj = JSONObject.parseObject(jsonRet).getJSONObject("result");
+        if (jsonObj != null) {
+            if (jsonObj.getInteger("ret_code") == RetCode.SUCCESS) {
+                ringSigObj.setSig(jsonObj.getString("sig"));
+                ringSigObj.setParam(jsonObj.getString("param_info"));
+                return true;
             }
-            return false;
-        } catch (Exception e) {
-            logger.error("callback LinkableRingSig FAILED, error msg:" + e.getMessage());
-            return false;
         }
+        return false;
     }
 
-    String linkableRingVerify(String ringName, String sig, String message) {
+    void linkableRingVerify(String ringName, String sig, String message) {
         Map<String, Object> paramMap = genParamMap("linkable_ring_verify");
         Map<String, String> subParamMap = new HashMap<>();
         subParamMap.put("ring_name", ringName);
@@ -366,13 +315,7 @@ public class RequestSigService {
 
         paramMap.put("params", subParamMap);
         String ringParam = getParam(paramMap);
-        // System.out.println("Param of LinkableRingVerify: "+ ring_param);
-        try {
-            return httpPostJson(url, ringParam);
-        } catch (Exception e) {
-            logger.error("CALLBACK LinkableRingVerify FAILED, error msg:" + e.getMessage());
-            return null;
-        }
+        httpPostJson(url, ringParam);
     }
 
     ///// get interfaces
@@ -382,11 +325,7 @@ public class RequestSigService {
         subParamMap.put("ring_name", ringName);
         paramMap.put("params", subParamMap);
         String ringParam = getParam(paramMap);
-        try {
-            httpPostJson(url, ringParam);
-        } catch (Exception e) {
-            logger.error("Callback GetRingParam FAILED, error msg:" + e.getMessage());
-        }
+        httpPostJson(url, ringParam);
     }
 
     void getRingPublicKey(String ringName, String memberPos) {
@@ -399,11 +338,7 @@ public class RequestSigService {
         paramMap.put("params", subParamMap);
 
         String ringParam = getParam(paramMap);
-        try {
-            httpPostJson(url, ringParam);
-        } catch (Exception e) {
-            logger.error("CALLBACK GetRingPublicKey FAILED, error msg:" + e.getMessage());
-        }
+        httpPostJson(url, ringParam);
     }
 
     void getRingPrivateKey(String ringName, String memberPos) {
@@ -416,11 +351,6 @@ public class RequestSigService {
         paramMap.put("params", subParamMap);
         String param = getParam(paramMap);
 
-        // System.out.println("PARAM OF GetRingPrivateKey:"+ param);
-        try {
-            httpPostJson(url, param);
-        } catch (Exception e) {
-            logger.error("CALL BACK GetRingPrivateKey FAILED, error msg:" + e.getMessage());
-        }
+        httpPostJson(url, param);
     }
 }
