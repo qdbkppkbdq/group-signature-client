@@ -235,7 +235,10 @@ public class Main {
                                 System.out.println("0 <= pos < ring-size <= 32");
                                 return;
                             }
-                        } else return;
+                        } else {
+                            System.out.println("illegal parameters");
+                            return;
+                        }
                         SigStruct ringSigObj = new SigStruct();
                         int i = 0;
                         ArrayList<Thread> threadArray = new ArrayList<>();
